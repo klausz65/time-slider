@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3.5
 #
 # CDDL HEADER START
 #
@@ -23,7 +23,7 @@
 import os
 import pwd
 
-import util
+from time_slider import util
 
 class RBACprofile:
 
@@ -111,8 +111,8 @@ class RBACprofile:
 
 if __name__ == "__main__":
   rbac = RBACprofile()
-  print rbac.name
-  print rbac.uid
-  print rbac.profiles
-  print rbac.auths
+  print(rbac.name)
+  print(rbac.uid)
+  print(rbac.profiles)
+  print(rbac.auths)
 

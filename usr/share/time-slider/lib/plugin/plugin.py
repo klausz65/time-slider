@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3.5
 #
 # CDDL HEADER START
 #
@@ -46,15 +46,15 @@ class Plugin(Exception):
         command = self.smfInst.get_trigger_command()
         try:
             statinfo = os.stat(command)
-            other_x = (statinfo.st_mode & 01)
+            other_x = (statinfo.st_mode & 0o1)
             if other_x == 0:
-              raise RuntimeError, 'Plugin: %s:\nConfigured trigger command is not ' \
+              raise RuntimeError('Plugin: %s:\nConfigured trigger command is not ' \
                                   'executable:\n%s' \
-                                  % (self.smfInst.instanceName, command)  
+                                  % (self.smfInst.instanceName, command))
         except OSError:
-            raise RuntimeError, 'Plugin: %s:\nCan not access the configured ' \
+            raise RuntimeError('Plugin: %s:\nCan not access the configured ' \
                                 'plugin/trigger_command:\n%s' \
-                                % (self.smfInst.instanceName, command)      
+                                % (self.smfInst.instanceName, command))
 
 
     def execute(self, schedule, label):
@@ -95,10 +95,11 @@ class Plugin(Exception):
             self._proc = subprocess.Popen(cmd,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE,
-                                          close_fds=True)
-        except OSError, message:
-            raise RuntimeError, "%s subprocess error:\n %s" % \
-                                (cmd, str(message))
+                                          close_fds=True,
+                                          universal_newlines=True)
+        except OSError as message:
+            raise RuntimeError("%s subprocess error:\n %s" % \
+                                (cmd, str(message)))
             self._proc = None
 
     def is_running(self):
@@ -137,13 +138,14 @@ class PluginManager():
         p = subprocess.Popen(cmd,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
-                             close_fds=True)
+                             close_fds=True,
+                             universal_newlines=True)
         outdata,errdata = p.communicate()
         err = p.wait()
         if err != 0:
             self._refreshLock.release()
-            raise RuntimeError, '%s failed with exit code %d\n%s' % \
-                                (str(cmd), err, errdata)
+            raise RuntimeError('%s failed with exit code %d\n%s' % \
+                                (str(cmd), err, errdata))
         for line in outdata.rstrip().split('\n'):
             line = line.rstrip().split()
             state = line[0]
@@ -158,7 +160,7 @@ class PluginManager():
                 try:
                     plugin = Plugin(fmri, self.verbose)
                     self.plugins.append(plugin)
-                except RuntimeError, message:
+                except RuntimeError as message:
                     sys.stderr.write("Ignoring misconfigured plugin: %s\n" \
                                      % (fmri))
                     sys.stderr.write("Reason:\n%s\n" % (message))

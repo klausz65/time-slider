@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3.5
 #
 # CDDL HEADER START
 #
@@ -24,16 +24,19 @@ import sys
 import os
 import subprocess
 import threading
-import gobject
 import dbus
 import dbus.decorators
 import dbus.glib
 import dbus.mainloop
 import dbus.mainloop.glib
-import gio
-import gtk
-import pygtk
-import pynotify
+import notify2
+
+try:
+    import gi
+    gi.require_version('Gtk', '3.0')
+    from gi.repository import Gtk, GObject, Gio
+except:
+    sys.exit(1)
 
 from time_slider import util, rbac
 
@@ -61,15 +64,14 @@ class Note:
             # Don't popup an empty menu
             if len(self._menu.get_children()) > 0:
                 self._menu.popup(None, None,
-                                 gtk.status_icon_position_menu,
-                                 button, time, icon)
+                                 Gtk.StatusIcon.position_menu, icon,
+                                 button, time)
 
     def _dialog_response(self, dialog, response):
         dialog.destroy()
 
     def _notification_closed(self, notifcation):
         self._note = None
-        self._icon.set_blinking(False)
 
     def _show_notification(self):
         self._note.show()
@@ -93,7 +95,7 @@ class Note:
         else:
             iconList = ['gnome-dev-harddisk']
 
-        iconTheme = gtk.icon_theme_get_default()
+        iconTheme = Gtk.IconTheme.get_default()
         iconInfo = iconTheme.choose_icon(iconList, 48, 0)
         pixbuf = iconInfo.load_icon()
 
@@ -114,11 +116,11 @@ class RsyncNote(Note):
         self._lock = threading.Lock()
         self._masterKey = None
         sysName,self._nodeName,rel,ver,arch = os.uname()
-        # References to gio.File and handler_id of a registered
-        # monitor callback on gio.File
+        # References to Gio.File and handler_id of a registered
+        # monitor callback on Gio.File
         self._fm = None
         self._fmID = None
-        # References to gio.VolumeMonitor and handler_ids of
+        # References to Gio.VolumeMonitor and handler_ids of
         # registered mount-added and mount-removed callbacks.
         self._vm = None
         self._vmAdd = None
@@ -128,7 +130,7 @@ class RsyncNote(Note):
         # Use this variable to keep track of it's running status.
         self._scriptRunning = False
         self._targetDirAvail = False
-        self._syncNowItem = gtk.MenuItem(_("Update Backups Now"))
+        self._syncNowItem = Gtk.MenuItem(_("Update Backups Now"))
         self._syncNowItem.set_sensitive(False)
         self._syncNowItem.connect("activate",
                                   self._sync_now)
@@ -186,7 +188,7 @@ class RsyncNote(Note):
             online = True
 
         if self._vm == None:
-            self._vm = gio.volume_monitor_get()
+            self._vm = Gio.VolumeMonitor.get()
 
         # If located, see if it's also managed by the volume monitor.
         # Or just try to find it otherwise.
@@ -196,8 +198,8 @@ class RsyncNote(Note):
             path = root.get_path()
             if self._baseTargetDir != None and \
                 path == self._baseTargetDir:
-                # Means the directory we found is gio monitored,
-                # so just monitor it using gio.VolumeMonitor.
+                # Means the directory we found is Gio monitored,
+                # so just monitor it using Gio.VolumeMonitor.
                 useVolMonitor = True
                 break
             elif self._validate_rsync_target(path) == True:
@@ -217,13 +219,13 @@ class RsyncNote(Note):
         else:
             # Found it
             if useVolMonitor == True:
-                # Looks like a removable device. Use gio.VolumeMonitor
+                # Looks like a removable device. Use Gio.VolumeMonitor
                 # as the preferred monitoring mechanism.
                 self._setup_volume_monitor()
             else:
                 # Found it on a static mount point like a zfs or nfs
                 # mount point.
-                # Can't use gio.VolumeMonitor so use a gio.File monitor
+                # Can't use Gio.VolumeMonitor so use a Gio.File monitor
                 # instead.
                 self._setup_file_monitor(self._masterTargetDir)
 
@@ -235,12 +237,12 @@ class RsyncNote(Note):
             
             
     def _setup_file_monitor(self, expectedPath):
-        # Use gio.File monitor as a fallback in 
-        # case gio.VolumeMonitor can't track the device.
+        # Use Gio.File monitor as a fallback in 
+        # case Gio.VolumeMonitor can't track the device.
         # This is the case for static/manual mount points
         # such as NFS, ZFS and other non-hotpluggables.
-        gFile = gio.File(path=expectedPath)
-        self._fm = gFile.monitor_file(gio.FILE_MONITOR_WATCH_MOUNTS)
+        gFile = Gio.File.new_for_path(expectedPath)
+        self._fm = gFile.monitor_file(Gio.FileMonitorFlags.WATCH_MOUNTS)
         self._fmID = self._fm.connect("changed",
                                       self._file_monitor_changed)
 
@@ -259,8 +261,8 @@ class RsyncNote(Note):
         root = mount.get_root()
         path = root.get_path()
         if self._validate_rsync_target(path) == True:
-            # Since gio.VolumeMonitor found the rsync target, don't
-            # bother relying on gio.File to find it any more. Disconnect
+            # Since Gio.VolumeMonitor found the rsync target, don't
+            # bother relying on Gio.File to find it any more. Disconnect
             # it's registered callbacks.
             if self._fm:
                 self._fm.disconnect(self._fmID)
@@ -310,7 +312,7 @@ class RsyncNote(Note):
         self._lock.release()
 
     def _rsync_started_handler(self, target, sender=None, interface=None, path=None):
-        urgency = pynotify.URGENCY_NORMAL
+        urgency = notify2.URGENCY_NORMAL
         if (self._note != None):
             self._note.close()
         # Try to pretty things up a bit by displaying volume name
@@ -324,7 +326,7 @@ class RsyncNote(Note):
             volName = volume.get_name()
             icon = volume.get_icon()
                       
-        self._note = pynotify.Notification(_("Backup Started"),
+        self._note = notify2.Notification(_("Backup Started"),
                                            _("Backing up snapshots to:\n<b>%s</b>\n" \
                                            "Do not disconnect the backup device.") \
                                             % (volName))
@@ -332,7 +334,7 @@ class RsyncNote(Note):
                            self._notification_closed)
         self._note.set_urgency(urgency)
         self._setup_icon_for_note(icon)
-        gobject.idle_add(self._show_notification)
+        GObject.idle_add(self._show_notification)
 
     def _rsync_current_handler(self, snapshot, remaining, sender=None, interface=None, path=None):
         self._icon.set_tooltip_markup(_("Backing up: <b>\'%s\'\n%d</b> snapshots remaining.\n" \
@@ -340,7 +342,7 @@ class RsyncNote(Note):
                                       % (snapshot, remaining))
 
     def _rsync_complete_handler(self, target, sender=None, interface=None, path=None):
-        urgency = pynotify.URGENCY_NORMAL
+        urgency = notify2.URGENCY_NORMAL
         if (self._note != None):
             self._note.close()
         # Try to pretty things up a bit by displaying volume name
@@ -354,7 +356,7 @@ class RsyncNote(Note):
             volName = volume.get_name()
             icon = volume.get_icon()
 
-        self._note = pynotify.Notification(_("Backup Complete"),
+        self._note = notify2.Notification(_("Backup Complete"),
                                            _("Your snapshots have been backed up to:\n<b>%s</b>") \
                                            % (volName))
         self._note.connect("closed", \
@@ -363,7 +365,7 @@ class RsyncNote(Note):
         self._setup_icon_for_note(icon)
         self._icon.set_has_tooltip(False)
         self.queueSize = 0
-        gobject.idle_add(self._show_notification)
+        GObject.idle_add(self._show_notification)
 
     def _rsync_synced_handler(self, sender=None, interface=None, path=None):
         self._icon.set_tooltip_markup(_("Your backups are up to date."))
@@ -428,13 +430,13 @@ class RsyncNote(Note):
         cmdPath = os.path.join(os.path.dirname(sys.argv[0]), \
                                "time-slider/plugins/rsync/rsync-backup")
         if os.geteuid() == 0:
-	  cmd = [cmdPath, \
-		 "%s:rsync" % (plugin.PLUGINBASEFMRI)]
-	else:
-	  cmd = ['/usr/bin/gksu' ,cmdPath, \
-		 "%s:rsync" % (plugin.PLUGINBASEFMRI)]
+            cmd = [cmdPath, \
+                   "%s:rsync" % (plugin.PLUGINBASEFMRI)]
+        else:
+            cmd = ['/usr/bin/gksu' ,cmdPath, \
+                   "%s:rsync" % (plugin.PLUGINBASEFMRI)]
 
-	subprocess.Popen(cmd, close_fds=True, cwd="/")
+        subprocess.Popen(cmd, close_fds=True, cwd="/")
 
 
 class CleanupNote(Note):
@@ -450,8 +452,8 @@ class CleanupNote(Note):
     def _show_cleanup_details(self, *args):
         # We could keep a dialog around but this a rare
         # enough event that's it not worth the effort.
-        dialog = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
-                                   buttons=gtk.BUTTONS_CLOSE)
+        dialog = Gtk.MessageDialog(type=Gtk.MessageType.WARNING,
+                                   buttons=Gtk.ButtonsType.CLOSE)
         dialog.set_title(_("Time Slider: Low Space Warning"))
         dialog.set_markup("<b>%s</b>" % (self._cleanupHead))
         dialog.format_secondary_markup(self._cleanupBody)
@@ -461,8 +463,8 @@ class CleanupNote(Note):
 
     def _cleanup_handler(self, pool, severity, threshhold, sender=None, interface=None, path=None):
         if severity == 4:
-            expiry = pynotify.EXPIRES_NEVER
-            urgency = pynotify.URGENCY_CRITICAL
+            expiry = notify2.EXPIRES_NEVER
+            urgency = notify2.URGENCY_CRITICAL
             self._cleanupHead = _("Emergency: \'%s\' is full!") % pool
             notifyBody = _("The file system: \'%s\', is over %s%% full.") \
                             % (pool, threshhold)
@@ -473,8 +475,8 @@ class CleanupNote(Note):
                      "disk space (see ZFS documentation).") \
                       % (pool, threshhold, pool)
         elif severity == 3:
-            expiry = pynotify.EXPIRES_NEVER
-            urgency = pynotify.URGENCY_CRITICAL
+            expiry = notify2.EXPIRES_NEVER
+            urgency = notify2.URGENCY_CRITICAL
             self._cleanupHead = _("Emergency: \'%s\' is almost full!") % pool
             notifyBody = _("The file system: \'%s\', exceeded %s%% "
                            "of its total capacity") \
@@ -488,8 +490,8 @@ class CleanupNote(Note):
                      "space (see ZFS documentation).") \
                       % (pool, threshhold, pool)
         elif severity == 2:
-            expiry = pynotify.EXPIRES_NEVER
-            urgency = pynotify.URGENCY_CRITICAL
+            expiry = notify2.EXPIRES_NEVER
+            urgency = notify2.URGENCY_CRITICAL
             self._cleanupHead = _("Urgent: \'%s\' is almost full!") % pool
             notifyBody = _("The file system: \'%s\', exceeded %s%% "
                            "of its total capacity") \
@@ -504,7 +506,7 @@ class CleanupNote(Note):
                      % (pool, threshhold, pool)
         elif severity == 1:
             expiry = 20000 # 20 seconds
-            urgency = pynotify.URGENCY_NORMAL
+            urgency = notify2.URGENCY_NORMAL
             self._cleanupHead = _("Warning: \'%s\' is getting full") % pool
             notifyBody = _("The file system: \'%s\', exceeded %s%% "
                            "of its total capacity") \
@@ -522,7 +524,7 @@ class CleanupNote(Note):
 
         if (self._note != None):
             self._note.close()
-        self._note = pynotify.Notification(self._cleanupHead,
+        self._note = notify2.Notification(self._cleanupHead,
                                            notifyBody)
         self._note.add_action("clicked",
                               _("Details..."),
@@ -532,8 +534,7 @@ class CleanupNote(Note):
         self._note.set_urgency(urgency)
         self._note.set_timeout(expiry)
         self._setup_icon_for_note()
-        self._icon.set_blinking(True)
-        gobject.idle_add(self._show_notification)
+        GObject.idle_add(self._show_notification)
 
     def _connect_to_object(self):
         try:
@@ -562,7 +563,7 @@ class SetupNote(Note):
         self._manager = manager
         self._icon = icon
         self._menu = menu
-        self._configSvcItem = gtk.MenuItem(_("Configure Time Slider..."))
+        self._configSvcItem = Gtk.MenuItem(_("Configure Time Slider..."))
         self._configSvcItem.connect("activate",
                                     self._run_config_app)
         self._configSvcItem.set_sensitive(True)
@@ -609,8 +610,8 @@ class NoteManager():
         # Notification objects need to share a common
         # status icon and popup menu so these are created
         # outside the object and passed to the constructor
-        self._menu = gtk.Menu()
-        self._icon = gtk.StatusIcon()
+        self._menu = Gtk.Menu()
+        self._icon = Gtk.StatusIcon()
         self._icon.set_from_icon_name("time-slider-setup")
         self._setupNote = SetupNote(self._icon,
                                     self._menu,
@@ -626,18 +627,17 @@ class NoteManager():
 bus = dbus.SystemBus()
 
 def main(argv):
-    mainloop = gobject.MainLoop()
+    mainloop = GObject.MainLoop()
     dbus.mainloop.glib.DBusGMainLoop(set_as_default = True)
-    gobject.threads_init()
-    pynotify.init(_("Time Slider"))
+    notify2.init(_("Time Slider"))
 
     noteManager = NoteManager()
 
     try:
         mainloop.run()
     except:
-        print "Exiting"
+        print("Exiting")
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
 

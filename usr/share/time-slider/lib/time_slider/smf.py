@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3.5
 #
 # CDDL HEADER START
 #
@@ -22,7 +22,7 @@
 
 import subprocess
 import threading
-import util
+from time_slider import util
 
 #SMF EXIT CODES
 SMF_EXIT_OK          = 0
@@ -149,5 +149,5 @@ class SMFInstance(Exception):
 
 if __name__ == "__main__":
   S = SMFInstance('svc:/application/time-slider')
-  print S
+  print(S)
 

@@ -1,5 +1,4 @@
-#!/usr/bin/python2.7
-#
+#!/usr/bin/python3.5
 # CDDL HEADER START
 #
 # The contents of this file are subject to the terms of the
@@ -24,9 +23,8 @@ import os
 import subprocess
 import sys
 import syslog
-import statvfs
 import math
-import gio
+from gi.repository import Gio, GLib
 
 def run_command(command, raise_on_try=True):
     """
@@ -39,15 +37,16 @@ def run_command(command, raise_on_try=True):
         p = subprocess.Popen(command,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
-                             close_fds=True)
+                             close_fds=True,
+                             universal_newlines=True)
         outdata,errdata = p.communicate()
         err = p.wait()
-    except OSError, message:
-        raise RuntimeError, "%s subprocess error:\n %s" % \
-                            (command, str(message))
+    except OSError as message:
+        raise RuntimeError("%s subprocess error:\n %s" % \
+                            (command, str(message)))
     if err != 0 and raise_on_try:
-        raise RuntimeError, '%s failed with exit code %d\n%s' % \
-                            (str(command), err, errdata)
+        raise RuntimeError('%s failed with exit code %d\n%s' % \
+                            (str(command), err, errdata))
     return outdata,errdata
 
 def debug(message, verbose):
@@ -78,8 +77,8 @@ def get_filesystem_capacity(path):
         raise ValueError("%s is a non-existent path" % path)
     f = os.statvfs(path)
 
-    unavailBlocks = f[statvfs.F_BLOCKS] - f[statvfs.F_BAVAIL]
-    capacity = int(math.ceil(100 * (unavailBlocks / float(f[statvfs.F_BLOCKS]))))
+    unavailBlocks = f.f_blocks - f.f_bavail
+    capacity = int(math.ceil(100 * (unavailBlocks / float(f.f_blocks))))
 
     return capacity
 
@@ -88,7 +87,7 @@ def get_available_size(path):
     if not os.path.exists(path):
         raise ValueError("%s is a non-existent path" % path)
     f = os.statvfs(path)
-    free = long(f[statvfs.F_BAVAIL] * f[statvfs.F_FRSIZE])
+    free = int(f.f_bavail * f.f_frsize)
     
     return free
 
@@ -99,8 +98,8 @@ def get_used_size(path):
         raise ValueError("%s is a non-existent path" % path)
     f = os.statvfs(path)
 
-    unavailBlocks = f[statvfs.F_BLOCKS] - f[statvfs.F_BAVAIL]
-    used = long(unavailBlocks * f[statvfs.F_FRSIZE])
+    unavailBlocks = f.f_blocks - f.f_bavail
+    used = int(unavailBlocks * f.f_frsize)
 
     return used
 
@@ -110,7 +109,7 @@ def get_total_size(path):
     if not os.path.exists(path):
         raise ValueError("%s is a non-existent path" % path)
     f = os.statvfs(path)
-    total = long(f[statvfs.F_BLOCKS] * f[statvfs.F_FRSIZE])
+    total = int(f.f_blocks * f.f_frsize)
 
     return total
 
@@ -122,10 +121,10 @@ def path_to_volume(path):
        If it fails to find an enclosing volume it returns
        None
     """
-    gFile = gio.File(path)
+    gFile = Gio.File.new_for_path(path)
     try:
         mount = gFile.find_enclosing_mount()
-    except gio.Error:
+    except GLib.Error:
         return None
     else:
         if mount != None:

@@ -8,9 +8,9 @@ INSTALL_SCRIPT = ${INSTALL} -f
 RM = /usr/bin/rm -f
 RMRF = /usr/bin/rm -Rf
 RMDIR = /usr/bin/rmdir
-# Use python 2.7 if PYTHON environent is not set
+# Use python 3.5 if PYTHON environent is not set
 ifeq ($(strip $(PYTHON)),)
-PYTHON = /usr/bin/python2.7
+PYTHON = /usr/bin/python3.5
 endif
 
 SUBDIRS = po data
@@ -86,11 +86,11 @@ install:
 	$(INSTALL_DATA) $(DESTDIR)/usr/share/icons/hicolor/72x72/apps usr/share/icons/hicolor/72x72/apps/time-slider-setup.png
 	$(mkinstalldirs) $(DESTDIR)/usr/share/icons/hicolor/96x96/apps
 	$(INSTALL_DATA) $(DESTDIR)/usr/share/icons/hicolor/96x96/apps usr/share/icons/hicolor/96x96/apps/time-slider-setup.png
-	$(mkinstalldirs) $(DESTDIR)/usr/share/time-slider/glade
-	$(INSTALL_DATA) $(DESTDIR)/usr/share/time-slider/glade usr/share/time-slider/glade/time-slider-delete.glade
-	$(INSTALL_DATA) $(DESTDIR)/usr/share/time-slider/glade usr/share/time-slider/glade/time-slider-setup.glade
-	$(INSTALL_DATA) $(DESTDIR)/usr/share/time-slider/glade usr/share/time-slider/glade/time-slider-snapshot.glade
-	$(INSTALL_DATA) $(DESTDIR)/usr/share/time-slider/glade usr/share/time-slider/glade/time-slider-version.glade
+	$(mkinstalldirs) $(DESTDIR)/usr/share/time-slider/ui
+	$(INSTALL_DATA) $(DESTDIR)/usr/share/time-slider/ui usr/share/time-slider/ui/time-slider-delete.ui
+	$(INSTALL_DATA) $(DESTDIR)/usr/share/time-slider/ui usr/share/time-slider/ui/time-slider-setup.ui
+	$(INSTALL_DATA) $(DESTDIR)/usr/share/time-slider/ui usr/share/time-slider/ui/time-slider-snapshot.ui
+	$(INSTALL_DATA) $(DESTDIR)/usr/share/time-slider/ui usr/share/time-slider/ui/time-slider-version.ui
 	$(mkinstalldirs) $(DESTDIR)/usr/share/time-slider/lib/time_slider
 	for file in usr/share/time-slider/lib/time_slider/*.py; do \
 		if test -f $$file ; then \

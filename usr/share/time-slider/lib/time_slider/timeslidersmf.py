@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3.5
 #
 # CDDL HEADER START
 #
@@ -22,8 +22,8 @@
 
 import subprocess
 import threading
-import smf
-import util
+from time_slider import smf
+from time_slider import util
 
 #SMF EXIT CODES
 SMF_EXIT_OK          = 0
@@ -133,7 +133,7 @@ class TimeSliderSMF(smf.SMFInstance):
            self.period == other.period:
             return True
         return False
-	
+
     def __str__(self):
         ret = "SMF Instance:\n" +\
               "\tName:\t\t\t%s\n" % (self.instanceName) +\
@@ -149,6 +149,6 @@ class TimeSliderSMF(smf.SMFInstance):
 
 
 if __name__ == "__main__":
-  S = TimeSliderSMF('svc:/application/time-slider')
-  print S
+    S = TimeSliderSMF('svc:/application/time-slider')
+    print(S)
 

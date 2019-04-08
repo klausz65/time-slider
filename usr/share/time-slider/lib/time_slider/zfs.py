@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3.5
 #
 # CDDL HEADER START
 #
@@ -25,7 +25,7 @@ import re
 import threading
 from bisect import insort, bisect_left, bisect_right
 
-import util
+from time_slider import util
 
 BYTESPERMB = 1048576
 
@@ -223,16 +223,17 @@ class Datasets(Exception):
                 p = subprocess.Popen(cmd,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
-                                     close_fds=True)
+                                     close_fds=True,
+                                     universal_newlines=True)
                 outdata,errdata = p.communicate()
                 err = p.wait()
-            except OSError, message:
-                raise RuntimeError, "%s subprocess error:\n %s" % \
-                                    (cmd, str(message))
+            except OSError as message:
+                raise RuntimeError("%s subprocess error:\n %s" % \
+                                    (cmd, str(message)))
             if err != 0:
                 Datasets._filesystemslock.release()
-                raise RuntimeError, '%s failed with exit code %d\n%s' % \
-                                    (str(cmd), err, errdata)
+                raise RuntimeError('%s failed with exit code %d\n%s' % \
+                                    (str(cmd), err, errdata))
             if len(outdata) > 1:
                 for line in outdata.rstrip().split('\n'):
                     line = line.rstrip().split()
@@ -269,16 +270,17 @@ class Datasets(Exception):
                 p = subprocess.Popen(cmd,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
-                                     close_fds=True)
+                                     close_fds=True,
+                                     universal_newlines=True)
                 outdata,errdata = p.communicate()
                 err = p.wait()
-            except OSError, message:
-                raise RuntimeError, "%s subprocess error:\n %s" % \
-                                    (cmd, str(message))
+            except OSError as message:
+                raise RuntimeError("%s subprocess error:\n %s" % \
+                                    (cmd, str(message)))
             if err != 0:
                 Datasets._volumeslock.release()
-                raise RuntimeError, '%s failed with exit code %d\n%s' % \
-                                    (str(cmd), err, errdata)
+                raise RuntimeError('%s failed with exit code %d\n%s' % \
+                                    (str(cmd), err, errdata))
             for line in outdata.rstrip().split('\n'):
                 Datasets.volumes.append(line.rstrip())
         Datasets._volumeslock.release()
@@ -314,22 +316,23 @@ class Datasets(Exception):
                 p = subprocess.Popen(cmd,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
-                                     close_fds=True)
+                                     close_fds=True,
+                                     universal_newlines=True)
                 outdata,errdata = p.communicate()
                 err= p.wait()
-            except OSError, message:
+            except OSError as message:
                 Datasets.snapshotslock.release()
-                raise RuntimeError, "%s subprocess error:\n %s" % \
-                                    (cmd, str(message))
+                raise RuntimeError("%s subprocess error:\n %s" % \
+                                    (cmd, str(message)))
             if err != 0:
                 Datasets.snapshotslock.release()
-                raise RuntimeError, '%s failed with exit code %d\n%s' % \
-                                    (str(cmd), err, errdata)
+                raise RuntimeError('%s failed with exit code %d\n%s' % \
+                                    (str(cmd), err, errdata))
             for dataset in outdata.rstrip().split('\n'):
                 if re.search("@", dataset):
                     insort(snaps, dataset.split())
             for snap in snaps:
-                Datasets.snapshots.append([snap[1], long(snap[0])])
+                Datasets.snapshots.append([snap[1], int(snap[0])])
         if pattern == None:
             snapshots = Datasets.snapshots[:]
         else:
@@ -606,7 +609,7 @@ class ReadableDataset:
             cmd = [ZFSCMD, "get", "-H", "-p", "-o", "value", "creation",
                    self.name]
             outdata,errdata = util.run_command(cmd)
-            self.__creationTime = long(outdata.rstrip())
+            self.__creationTime = int(outdata.rstrip())
         return self.__creationTime
 
     def exists(self):
@@ -621,12 +624,13 @@ class ReadableDataset:
             p = subprocess.Popen(cmd,
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE,
-                                 close_fds=True)
+                                 close_fds=True,
+                                 universal_newlines=True)
             outdata,errdata = p.communicate()
             err = p.wait()
-        except OSError, message:
-            raise RuntimeError, "%s subprocess error:\n %s" % \
-                            (command, str(message))
+        except OSError as message:
+            raise RuntimeError("%s subprocess error:\n %s" % \
+                            (command, str(message)))
         if err != 0:
             # Doesn't exist
             return False
@@ -640,7 +644,7 @@ class ReadableDataset:
     def get_used_size(self):
         cmd = [ZFSCMD, "get", "-H", "-p", "-o", "value", "used", self.name]
         outdata,errdata = util.run_command(cmd)
-        return long(outdata.rstrip())
+        return int(outdata.rstrip())
 
     def get_user_property(self, prop, local=False):
         if local == True:
@@ -697,7 +701,7 @@ class Snapshot(ReadableDataset):
                "-o", "value", "referenced", \
                self.name]
         outdata,errdata = util.run_command(cmd)
-        return long(outdata.rstrip())
+        return int(outdata.rstrip())
 
     def list_children(self):
         """Returns a recursive list of child snapshots of this snapshot"""
@@ -709,7 +713,7 @@ class Snapshot(ReadableDataset):
         for line in outdata.rstrip().split('\n'):
             if re.search("@%s" % (self.snaplabel), line) and \
                 line != self.name:
-                    result.append(line)
+                result.append(line)
         return result
 
     def has_clones(self):
@@ -831,7 +835,7 @@ class ReadWritableDataset(ReadableDataset):
         cmd = [ZFSCMD, "get", "-H", "-p", "-o", "value", "available", \
                self.name]
         outdata,errdata = util.run_command(cmd)
-        return long(outdata.rstrip())
+        return int(outdata.rstrip())
 
     def create_snapshot(self, snaplabel, recursive = False):
         """
@@ -852,8 +856,8 @@ class ReadWritableDataset(ReadableDataset):
             cmd.append("-r")
         cmd.append("%s@%s" % (self.name, snaplabel))
         outdata,errdata = util.run_command(cmd, False)
-	if errdata:
-	  print errdata
+        if errdata:
+            print(errdata)
         self.datasets.refresh_snapshots()
 
     def list_children(self):
@@ -1025,20 +1029,19 @@ def list_zpools():
 if __name__ == "__main__":
     for zpool in list_zpools():
         pool = ZPool(zpool)
-        print pool
+        print(pool)
         for filesys,mountpoint in pool.list_filesystems():
             fs = Filesystem(filesys, mountpoint)
-            print fs
-            print "\tSnapshots:"
+            print(fs)
+            print("\tSnapshots:")
             for snapshot, snaptime in fs.list_snapshots():
                 snap = Snapshot(snapshot, snaptime)
-                print "\t\t" + snap.name
+                print("\t\t" + snap.name)
 
         for volname in pool.list_volumes():
             vol = Volume(volname)
-            print vol
-            print "\tSnapshots:"
+            print(vol)
+            print("\tSnapshots:")
             for snapshot, snaptime in vol.list_snapshots():
                 snap = Snapshot(snapshot, snaptime)
-                print "\t\t" + snap.name
-
+                print("\t\t" + snap.name)
