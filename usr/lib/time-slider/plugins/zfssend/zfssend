@@ -1,4 +1,4 @@
-#!/usr/bin/python3.5
+#!/usr/bin/python3.9
 import sys
 from os.path import dirname, join, pardir, abspath
 sys.path.insert(0, join(dirname(__file__), pardir, pardir, pardir, pardir,
