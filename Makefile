@@ -10,7 +10,7 @@ RMRF = /usr/bin/rm -Rf
 RMDIR = /usr/bin/rmdir
 # Use python 3.5 if PYTHON environent is not set
 ifeq ($(strip $(PYTHON)),)
-PYTHON = /usr/bin/python3.5
+PYTHON = /usr/bin/python3.9
 endif
 
 SUBDIRS = po data
